@@ -1,0 +1,73 @@
+# =============================================================================
+# TaskForge .dockerignore - Exclude unnecessary files from Docker context
+# =============================================================================
+
+# .NET build outputs
+bin/
+obj/
+**/bin/
+**/obj/
+
+# Node.js
+node_modules/
+**/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Docker artifacts
+.docker/
+Dockerfile*
+docker-compose*.yml
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Build artifacts
+publish/
+dist/
+*.dll
+*.exe
+*.pdb
+*.log
+*.db
+*.db-shm
+*.db-wal
+
+# IDE & Editor
+.vs/
+.vscode/
+.idea/
+*.userprefs
+*.suo
+*.DotSettings.user
+*.sln.iml
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs
+logs/
+
+# Environment secrets (local)
+.env
+.env.*
+*.local
+
+# Test files (not needed for production image)
+**/*.testresults.xml
+**/*.coverage
+coverage/
+test-e2e.ps1
+**/e2e/
+**/tests/
+**/__tests__/
+
+# Documentation (not needed for production image)
+docs/
+README.md
+LICENSE

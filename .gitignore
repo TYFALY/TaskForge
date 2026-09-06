@@ -1,0 +1,92 @@
+﻿# .NET
+bin/
+obj/
+*.dll
+*.exe
+*.pdb
+*.user
+*.suo
+*.cache
+*.log
+*.db
+*.db-shm
+*.db-wal
+.vs/
+*.DotSettings.user
+.slnx
+
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+bld/
+[Ll]og/
+
+# NuGet
+*.nupkg
+*.snupkg
+.nuget/
+packages/
+
+# Visual Studio
+.vs/
+*.userprefs
+*.userosscache
+*.sln.docstates
+
+# Rider
+.idea/
+*.sln.iml
+
+# Visual Studio Code
+.vscode/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.eslintcache
+.node_repl_history
+
+# Package managers
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Docker - Keep Dockerfile and docker-compose.yml, ignore overrides
+.docker/
+docker-compose.override.yml
+*.dockerfile.local
+!Dockerfile
+!docker-compose.yml
+
+# Environment - NEVER commit these
+.env
+.env.*
+*.local
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs
+logs/
+*.log
+
+# Publish output (local builds)
+publish/
+dist/
+
+# Test artifacts
+coverage/
+*.testresults.xml
+*.coverage
+
+# IDE
+*.swp
+*~
+
