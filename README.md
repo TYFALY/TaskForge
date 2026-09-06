@@ -1,4 +1,4 @@
-<p align="center">
+﻿<p align="center">
   <img src="docs/logo.png" alt="TaskForge" width="180" />
 </p>
 
@@ -18,7 +18,7 @@
 
 ---
 
-## ? Project Overview
+## 🚀 Project Overview
 
 **TaskForge** is a modern, lightweight asynchronous distributed job processing engine built specifically for .NET 8. It provides ultra-low latency job queuing via in-memory channels, real-time observability via Server-Sent Events (SSE), and a zero-configuration React dashboard—all packaged in a single Docker container.
 
@@ -26,25 +26,25 @@
 
 | Feature | Description |
 |---------|-------------|
-| ? **In-Memory Channels** | Uses `System.Threading.Channels` for lock-free, high-throughput job buffering |
-| ? **Webhook-First Design** | Executes HTTP webhooks with retry logic and dead-letter queues |
-| ? **Real-Time Dashboard** | Built-in React + Tailwind dashboard with live SSE updates |
-| ? **Zero-Config** | Works out of the box with SQLite, no external dependencies required |
-| ? **Docker-Ready** | Single-stage or multi-stage production builds with health checks |
+| ⚡ **In-Memory Channels** | Uses `System.Threading.Channels` for lock-free, high-throughput job buffering |
+| 🪝 **Webhook-First Design** | Executes HTTP webhooks with retry logic and dead-letter queues |
+| 📊 **Real-Time Dashboard** | Built-in React + Tailwind dashboard with live SSE updates |
+| 💾 **Zero-Config** | Works out of the box with SQLite, no external dependencies required |
+| 🐳 **Docker-Ready** | Single-stage or multi-stage production builds with health checks |
 
 ---
 
-## ?? Dashboard Preview
+## 📊 Dashboard Preview
 
 The TaskForge dashboard is a modern **React + Tailwind CSS** interface that provides real-time job monitoring without polling.
 
 ### Features
 
-- **? Live SSE Updates**: Server-Sent Events stream job status changes in real-time
-- **? KPI Cards**: At-a-glance metrics for queue depth, throughput, and success rates
-- **? Job History Table**: Filterable, sortable history with retry status indicators
-- **?? Simulation Controls**: Built-in job generator for load testing
-- **? Integration Guide**: cURL/PowerShell snippets with your API key pre-filled
+- **📡 Live SSE Updates**: Server-Sent Events stream job status changes in real-time
+- **📊 KPI Cards**: At-a-glance metrics for queue depth, throughput, and success rates
+- **📋 Job History Table**: Filterable, sortable history with retry status indicators
+- **⚡ Simulation Controls**: Built-in job generator for load testing
+- **💡 Integration Guide**: cURL/PowerShell snippets with your API key pre-filled
 
 ### Architecture Benefits
 
@@ -60,7 +60,7 @@ The TaskForge dashboard is a modern **React + Tailwind CSS** interface that prov
 
 ---
 
-## ? Quick Start
+## ⚡ Quick Start
 
 ### Prerequisites
 
@@ -118,7 +118,7 @@ curl -N http://localhost:5000/api/v1/events \\
 
 ---
 
-## ?? Architecture & System Design
+## 🏗️ Architecture & System Design
 
 ```
 +-----------------------------------------------------------------------------+
@@ -162,7 +162,7 @@ curl -N http://localhost:5000/api/v1/events \\
 
 ---
 
-## ? API Reference
+## 📡 API Reference
 
 ### Base URL
 
@@ -240,7 +240,7 @@ curl -N http://localhost:5000/api/v1/events \\
 
 ---
 
-## ? Testing
+## 🧪 Testing
 
 ### Run All Tests
 
@@ -257,7 +257,7 @@ npm test
 
 ---
 
-## ? Performance Benchmarks
+## 📊 Performance Benchmarks
 
 | Metric | Value |
 |--------|-------|
@@ -270,7 +270,7 @@ npm test
 
 ---
 
-## ? Configuration
+## ⚙️ Configuration
 
 ### Environment Variables
 
@@ -309,7 +309,7 @@ services:
 
 ---
 
-## ? Project Structure
+## 📁 Project Structure
 
 ```
 TaskForge/
@@ -344,7 +344,7 @@ TaskForge/
 
 ---
 
-## ? Contributing
+## 🛠️ Contributing
 
 1. **Fork the repository**
 2. **Create a feature branch:** `git checkout -b feature/amazing-feature`
@@ -354,12 +354,12 @@ TaskForge/
 
 ---
 
-## ? License
+## 📝 License
 
 This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
 
 ---
 
 <p align="center">
-  Built with ? for .NET developers
+  Built with ❤️ for .NET developers
 </p>
