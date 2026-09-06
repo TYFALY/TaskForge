@@ -1,5 +1,3 @@
-# ? TaskForge
-
 <p align="center">
   <img src="docs/logo.png" alt="TaskForge" width="180" />
 </p>
@@ -11,18 +9,18 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/TYFALY/TaskForge/actions/workflows/ci.yml"><img src="https://github.com/TYFALY/TaskForge/actions/workflows/ci.yml/badge.svg" alt="CI Status" /></a>
-  <a href="https://www.nuget.org/packages/TaskForge"><img src="https://img.shields.io/nuget/v/TaskForge.svg" alt="NuGet" /></a>
-  <a href="https://learn.microsoft.com/en-us/dotnet/core/"><img src="https://img.shields.io/badge/.NET-8.0-purple?style=flat" alt=".NET 8" /></a>
-  <a href="https://playwright.dev/"><img src="https://img.shields.io/badge/Playwright-Tested-blueviolet?style=flat" alt="Playwright Tested" /></a>
-  <a href="https://github.com/TYFALY/TaskForge/blob/main/LICENSE"><img src="https://img.shields.io/github/license/TYFALY/TaskForge" alt="License" /></a>
+  <a href="https://github.com/TYFALY/TaskForge/actions/workflows/docker.yml"><img src="https://github.com/TYFALY/TaskForge/actions/workflows/docker.yml/badge.svg" alt="CI Status" /></a>
+  <a href="https://hub.docker.com/"><img src="https://img.shields.io/badge/Docker-Ready-2496ED?style=flat&logo=docker&logoColor=white" alt="Docker Ready" /></a>
+  <a href="https://learn.microsoft.com/en-us/dotnet/core/"><img src="https://img.shields.io/badge/.NET-8.0-512BD4?style=flat&logo=.net&logoColor=white" alt=".NET 8" /></a>
+  <a href="https://playwright.dev/"><img src="https://img.shields.io/badge/Playwright-Tested-2EAD33?style=flat&logo=playwright&logoColor=white" alt="Playwright Tested" /></a>
+  <a href="https://github.com/TYFALY/TaskForge/blob/main/LICENSE"><img src="https://img.shields.io/github/license/TYFALY/TaskForge?style=flat&color=blue" alt="License" /></a>
 </p>
 
 ---
 
 ## ? Project Overview
 
-**TaskForge** is a modern, lightweight asynchronous distributed job processing engine built specifically for .NET 8. It provides ultra-low latency job queuing via in-memory channels, real-time observability via Server-Sent Events (SSE), and a zero-configuration React dashboard—all packaged in a single Docker container.
+**TaskForge** is a modern, lightweight asynchronous distributed job processing engine built specifically for .NET 8. It provides ultra-low latency job queuing via in-memory channels, real-time observability via Server-Sent Events (SSE), and a zero-configuration React dashboardâ€”all packaged in a single Docker container.
 
 ### Key Characteristics
 
@@ -52,11 +50,11 @@ The TaskForge dashboard is a modern **React + Tailwind CSS** interface that prov
 
 ```
 +---------------------------------------------------------+
-¦                    ZERO POLLING                         ¦
-¦                                                          ¦
-¦   Dashboard ?---- SSE Stream ------? TaskForge API    ¦
-¦                                                          ¦
-¦   Updates appear instantly when jobs complete            ¦
+Â¦                    ZERO POLLING                         Â¦
+Â¦                                                          Â¦
+Â¦   Dashboard ?---- SSE Stream ------? TaskForge API    Â¦
+Â¦                                                          Â¦
+Â¦   Updates appear instantly when jobs complete            Â¦
 +---------------------------------------------------------+
 ```
 
@@ -124,31 +122,31 @@ curl -N http://localhost:5000/api/v1/events \\
 
 ```
 +-----------------------------------------------------------------------------+
-¦                              CLIENT LAYER                                    ¦
-¦         (cURL, Postman, Browser, Mobile App, CI/CD Pipeline)               ¦
+Â¦                              CLIENT LAYER                                    Â¦
+Â¦         (cURL, Postman, Browser, Mobile App, CI/CD Pipeline)               Â¦
 +-----------------------------------------------------------------------------+
-                                 ¦ HTTP POST /api/v1/jobs/enqueue
+                                 Â¦ HTTP POST /api/v1/jobs/enqueue
                                  ?
 +-----------------------------------------------------------------------------+
-¦                      TASKFORGE API (ASP.NET Core 8)                        ¦
-¦  +----------------+    +----------------+    +------------------------+   ¦
-¦  ¦  Web API       ¦---?¦  Job           ¦---?¦  Channel Buffer        ¦   ¦
-¦  ¦  Controllers   ¦    ¦  Controller    ¦    ¦  (RAM - Channels)      ¦   ¦
-¦  +----------------+    +----------------+    +------------------------+   ¦
-¦  +----------------+    +----------------+               ¦                 ¦
-¦  ¦  SSE Stream    ¦?---¦  Job           ¦?---¦  Background Job       ¦   ¦
-¦  ¦  /events      ¦    ¦  Broadcaster   ¦    ¦  Processor            ¦   ¦
-¦  +----------------+    +----------------+    +------------------------+   ¦
-¦  +----------------+    +----------------+               ¦                 ¦
-¦  ¦  Health        ¦    ¦  Webhook       ¦--------------?¦  External HTTP   ¦   ¦
-¦  ¦  /health      ¦    ¦  Executor      ¦    ¦  Targets              ¦   ¦
-¦  +----------------+    +----------------+    +------------------------+   ¦
+Â¦                      TASKFORGE API (ASP.NET Core 8)                        Â¦
+Â¦  +----------------+    +----------------+    +------------------------+   Â¦
+Â¦  Â¦  Web API       Â¦---?Â¦  Job           Â¦---?Â¦  Channel Buffer        Â¦   Â¦
+Â¦  Â¦  Controllers   Â¦    Â¦  Controller    Â¦    Â¦  (RAM - Channels)      Â¦   Â¦
+Â¦  +----------------+    +----------------+    +------------------------+   Â¦
+Â¦  +----------------+    +----------------+               Â¦                 Â¦
+Â¦  Â¦  SSE Stream    Â¦?---Â¦  Job           Â¦?---Â¦  Background Job       Â¦   Â¦
+Â¦  Â¦  /events      Â¦    Â¦  Broadcaster   Â¦    Â¦  Processor            Â¦   Â¦
+Â¦  +----------------+    +----------------+    +------------------------+   Â¦
+Â¦  +----------------+    +----------------+               Â¦                 Â¦
+Â¦  Â¦  Health        Â¦    Â¦  Webhook       Â¦--------------?Â¦  External HTTP   Â¦   Â¦
+Â¦  Â¦  /health      Â¦    Â¦  Executor      Â¦    Â¦  Targets              Â¦   Â¦
+Â¦  +----------------+    +----------------+    +------------------------+   Â¦
 +-----------------------------------------------------------------------------+
-                                 ¦
+                                 Â¦
                                  ?
                      +-----------------------+
-                     ¦   SQLite / PostgreSQL  ¦
-                     ¦   (Job Persistence)   ¦
+                     Â¦   SQLite / PostgreSQL  Â¦
+                     Â¦   (Job Persistence)   Â¦
                      +-----------------------+
 ```
 
@@ -316,24 +314,24 @@ services:
 ```
 TaskForge/
 +-- docs/                          # Documentation assets
-¦   +-- dashboard-preview.png
-¦   +-- logo.png
+Â¦   +-- dashboard-preview.png
+Â¦   +-- logo.png
 +-- scripts/                       # Utility scripts
-¦   +-- send-live-jobs.ps1
+Â¦   +-- send-live-jobs.ps1
 +-- src/                           # .NET source code
-¦   +-- TaskForge.Api/            # ASP.NET Core Web API
-¦   ¦   +-- Endpoints/            # Minimal API endpoints
-¦   ¦   +-- Middleware/           # API key authentication
-¦   ¦   +-- Metrics/              # Prometheus metrics
-¦   ¦   +-- wwwroot/              # Embedded React dashboard
-¦   ¦   +-- Program.cs
-¦   +-- TaskForge.Benchmark/      # BenchmarkDotNet benchmarks
-¦   +-- TaskForge.Core/            # Shared models & interfaces
-¦   +-- TaskForge.Worker/          # Background job processor
+Â¦   +-- TaskForge.Api/            # ASP.NET Core Web API
+Â¦   Â¦   +-- Endpoints/            # Minimal API endpoints
+Â¦   Â¦   +-- Middleware/           # API key authentication
+Â¦   Â¦   +-- Metrics/              # Prometheus metrics
+Â¦   Â¦   +-- wwwroot/              # Embedded React dashboard
+Â¦   Â¦   +-- Program.cs
+Â¦   +-- TaskForge.Benchmark/      # BenchmarkDotNet benchmarks
+Â¦   +-- TaskForge.Core/            # Shared models & interfaces
+Â¦   +-- TaskForge.Worker/          # Background job processor
 +-- taskforge-ui/                  # React + Tailwind frontend
-¦   +-- src/                       # React components
-¦   +-- tests/                     # Playwright E2E tests
-¦   +-- package.json
+Â¦   +-- src/                       # React components
+Â¦   +-- tests/                     # Playwright E2E tests
+Â¦   +-- package.json
 +-- .dockerignore                  # Docker context exclusions
 +-- .gitignore                     # Git exclusions
 +-- docker-compose.yml             # Container orchestration
