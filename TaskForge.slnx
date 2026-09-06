@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/TaskForge.Api/TaskForge.Api.csproj" />
+    <Project Path="src/TaskForge.Benchmark/TaskForge.Benchmark.csproj" />
+    <Project Path="src/TaskForge.Core/TaskForge.Core.csproj" />
+    <Project Path="src/TaskForge.Worker/TaskForge.Worker.csproj" />
+  </Folder>
+</Solution>
