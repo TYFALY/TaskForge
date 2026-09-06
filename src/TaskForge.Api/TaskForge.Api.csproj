@@ -20,12 +20,12 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.0" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.11" />
     <PackageReference Include="Npgsql" Version="10.0.3" />
     <PackageReference Include="prometheus-net.AspNetCore" Version="8.2.1" />
     <PackageReference Include="StackExchange.Redis" Version="3.1.31" />
-    <PackageReference Include="System.Threading.RateLimiting" Version="10.0.0" />
+    <PackageReference Include="System.Threading.RateLimiting" Version="8.0.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -45,4 +45,7 @@
     </Content>
   </ItemGroup>
 </Project>
+
+
+
 
