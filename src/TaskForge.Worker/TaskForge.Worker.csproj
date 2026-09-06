@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Worker">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>dotnet-TaskForge.Worker-54ab553a-d882-4937-bdc1-f2f12d288c1f</UserSecretsId>
@@ -18,3 +18,4 @@
     <ProjectReference Include="..\TaskForge.Core\TaskForge.Core.csproj" />
   </ItemGroup>
 </Project>
+
