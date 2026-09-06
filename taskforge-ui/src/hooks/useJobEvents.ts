@@ -1,3 +1,56 @@
+import { useEffect, useRef } from 'react';
+import { Job } from '../types';
+
+interface UseJobEventsOptions {
+  onJobEnqueued?: (job: Job) => void;
+  onJobUpdated?: (job: Job) => void;
+}
+
+export function useJobEvents(options: UseJobEventsOptions = {}) {
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
+
+  useEffect(() => {
+    let eventSource: EventSource | null = null;
+    let reconnectTimeout: NodeJS.Timeout;
+
+    const connect = () => {
+      eventSource = new EventSource('/api/v1/jobs/stream');
+
+      eventSource.addEventListener('job_enqueued', (event: MessageEvent) => {
+        try {
+          const job: Job = JSON.parse(event.data);
+          optionsRef.current.onJobEnqueued?.(job);
+        } catch (err) {
+          console.error('Failed to parse job_enqueued event', err);
+        }
+      });
+
+      eventSource.addEventListener('job_updated', (event: MessageEvent) => {
+        try {
+          const job: Job = JSON.parse(event.data);
+          optionsRef.current.onJobUpdated?.(job);
+        } catch (err) {
+          console.error('Failed to parse job_updated event', err);
+        }
+      });
+
+      eventSource.onerror = () => {
+        eventSource?.close();
+        reconnectTimeout = setTimeout(connect, 3000);
+      };
+    };
+
+    connect();
+
+    return () => {
+      if (eventSource) {
+        eventSource.close();
+      }
+      clearTimeout(reconnectTimeout);
+    };
+  }, []);
+}
 ﻿import { useEffect, useRef, useState, useCallback } from '"'react'"';
 import type { Job, JobEvent } from '"'../types'"';
 
