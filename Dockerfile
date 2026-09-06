@@ -1,4 +1,4 @@
-﻿# =============================================================================
+# =============================================================================
 # TaskForge - Multi-Stage Production Dockerfile
 # =============================================================================
 # Stage 1: Frontend Build
@@ -9,7 +9,7 @@ WORKDIR /src/frontend
 
 # Copy and install frontend dependencies
 COPY taskforge-ui/package*.json ./
-RUN npm ci
+RUN npm install
 
 # Copy frontend source and build
 COPY taskforge-ui/ ./
@@ -71,3 +71,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 
 # Entry point to run the application
 ENTRYPOINT ["dotnet", "TaskForge.Api.dll"]
+
