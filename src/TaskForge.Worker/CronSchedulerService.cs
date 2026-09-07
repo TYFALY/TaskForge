@@ -103,10 +103,11 @@ public class CronSchedulerService : BackgroundService
         {
             foreach (var schedule in _schedules.Values)
             {
-                if (schedule.NextOccurrence.HasValue && schedule.NextOccurrence.Value <= now)
+                var next = schedule.NextOccurrence;
+                if (next.HasValue && next.GetValueOrDefault() <= now)
                 {
                     toTrigger.Add(schedule);
-                    schedule.NextOccurrence = schedule.Cron.GetNextOccurrence(now, TimeZoneInfo.Utc);
+                    schedule.NextOccurrence = schedule.Cron!.GetNextOccurrence(now, TimeZoneInfo.Utc);
                 }
             }
         }

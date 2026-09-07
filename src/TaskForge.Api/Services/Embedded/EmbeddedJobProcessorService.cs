@@ -1,5 +1,6 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using TaskForge.Core;
+using TaskForge.Core.Security;
 
 namespace TaskForge.Api.Services.Embedded;
 
@@ -15,6 +16,7 @@ public class EmbeddedJobProcessorService : BackgroundService, IEmbeddedJobProces
     private readonly IEmbeddedQueueService _queueService;
     private readonly ILogger<EmbeddedJobProcessorService> _logger;
     private readonly string _workerId;
+    private readonly int _maxRetries;
     private int _processedCount;
 
     public bool IsRunning => true;
@@ -23,18 +25,20 @@ public class EmbeddedJobProcessorService : BackgroundService, IEmbeddedJobProces
     public EmbeddedJobProcessorService(
         IJobBufferService bufferService,
         IEmbeddedQueueService queueService,
-        ILogger<EmbeddedJobProcessorService> logger)
+        ILogger<EmbeddedJobProcessorService> logger,
+        int maxRetries = 3)
     {
         _bufferService = bufferService;
         _queueService = queueService;
         _logger = logger;
         _workerId = $"embedded-worker-{Environment.MachineName}-{Guid.NewGuid():N}"[..32];
+        _maxRetries = maxRetries;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _queueService.RegisterWorker(_workerId);
-        _logger.LogInformation("[PROCESSOR] Embedded job processor started with worker ID: {WorkerId}", _workerId);
+        _logger.LogInformation("[PROCESSOR] Embedded job processor started with worker ID: {WorkerId}, MaxRetries: {MaxRetries}", _workerId, _maxRetries);
 
         try
         {
@@ -76,45 +80,63 @@ public class EmbeddedJobProcessorService : BackgroundService, IEmbeddedJobProces
         _logger.LogInformation("[PROCESSOR] Processing job {JobId} of type {JobType} in embedded mode",
             job.Id, job.JobType);
 
-        // Use try-finally to guarantee status update
-        JobStatus finalStatus = JobStatus.Completed;
-        Exception? processingException = null;
+        var attempt = job.CurrentRetry;
 
-        try
+        while (true)
         {
-            if (job.JobType == JobType.Webhook)
+            try
             {
-                await ProcessWebhookJobAsync(job, ct);
-            }
-            else if (job.JobType == JobType.Scheduled)
-            {
-                _logger.LogDebug("[PROCESSOR] Scheduled job {JobId} acknowledged, next run calculated", job.Id);
-            }
-            else
-            {
-                var payload = JsonSerializer.Deserialize<JsonElement>(job.Payload);
-                _logger.LogDebug("[PROCESSOR] Processing job payload: {Payload}", payload);
-                await Task.Delay(50, ct);
-            }
-
-            finalStatus = JobStatus.Completed;
-            _logger.LogInformation("[PROCESSOR] Job {JobId} completed successfully", job.Id);
-        }
-        catch (Exception ex)
-        {
-            processingException = ex;
-            finalStatus = JobStatus.Failed;
-            _logger.LogError(ex, "[PROCESSOR] Job {JobId} failed", job.Id);
-        }
-        finally
-        {
-            // ALWAYS update status, guaranteed by try-finally
-            UpdateJobStatus(job.Id, finalStatus);
-
-            if (finalStatus == JobStatus.Completed)
-            {
+                await ExecuteJobAsync(job, ct);
+                _logger.LogInformation("[PROCESSOR] Job {JobId} completed successfully", job.Id);
+                UpdateJobStatus(job.Id, JobStatus.Completed);
                 Interlocked.Increment(ref _processedCount);
+                return;
             }
+            catch (Exception ex)
+            {
+                attempt++;
+
+                if (attempt >= _maxRetries)
+                {
+                    _logger.LogWarning(ex, "[PROCESSOR] Job {JobId} exhausted {MaxRetries} retries. Marking as DeadLettered.",
+                        job.Id, _maxRetries);
+                    UpdateJobStatus(job.Id, JobStatus.DeadLettered);
+                    return;
+                }
+
+                var delaySeconds = (int)Math.Pow(2, attempt);
+                _logger.LogWarning(ex, "[PROCESSOR] Job {JobId} failed (attempt {Attempt}/{MaxRetries}). Retrying in {Delay}s...",
+                    job.Id, attempt, _maxRetries, delaySeconds);
+
+                try
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(delaySeconds), ct);
+                }
+                catch (OperationCanceledException)
+                {
+                    _logger.LogWarning("[PROCESSOR] Job {JobId} retry delay cancelled, re-enqueuing", job.Id);
+                    await _queueService.PushJobAsync(job.QueueName, job with { CurrentRetry = attempt });
+                    return;
+                }
+            }
+        }
+    }
+
+    private async Task ExecuteJobAsync(JobEnvelope job, CancellationToken ct)
+    {
+        if (job.JobType == JobType.Webhook)
+        {
+            await ProcessWebhookJobAsync(job, ct);
+        }
+        else if (job.JobType == JobType.Scheduled)
+        {
+            _logger.LogDebug("[PROCESSOR] Scheduled job {JobId} acknowledged, next run calculated", job.Id);
+        }
+        else
+        {
+            var payload = JsonSerializer.Deserialize<JsonElement>(job.Payload);
+            _logger.LogDebug("[PROCESSOR] Processing job payload: {Payload}", payload);
+            await Task.Delay(50, ct);
         }
     }
 
@@ -122,11 +144,8 @@ public class EmbeddedJobProcessorService : BackgroundService, IEmbeddedJobProces
     {
         try
         {
-            if (_bufferService is JobBufferService buffer)
-            {
-                buffer.UpdateJobStatus(jobId, status);
-                _logger.LogDebug("[PROCESSOR] Job {JobId} status updated to {Status}", jobId, status);
-            }
+            _bufferService.UpdateJobStatus(jobId, status);
+            _logger.LogDebug("[PROCESSOR] Job {JobId} status updated to {Status}", jobId, status);
         }
         catch (Exception ex)
         {
@@ -144,6 +163,9 @@ public class EmbeddedJobProcessorService : BackgroundService, IEmbeddedJobProces
         }
 
         if (webhook == null) throw new InvalidOperationException("Webhook payload is null");
+
+        // SSRF Protection: validate URL before making any HTTP request
+        SsrfProtectionFilter.EnsureSafe(webhook.TargetUrl);
 
         _logger.LogInformation("[PROCESSOR] Executing webhook job {JobId}: {Method} {Url}",
             job.Id, webhook.Method, webhook.TargetUrl);
@@ -167,7 +189,6 @@ public class EmbeddedJobProcessorService : BackgroundService, IEmbeddedJobProces
         var response = await httpClient.SendAsync(request, ct);
         var statusCode = (int)response.StatusCode;
         
-        // Throw on non-success status codes to trigger retry/DLQ
         if (!response.IsSuccessStatusCode)
         {
             throw new HttpRequestException($"Webhook returned status {statusCode}");

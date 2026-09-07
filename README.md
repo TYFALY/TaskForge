@@ -150,7 +150,7 @@ curl -N http://localhost:5000/api/v1/events \\
                      +-----------------------+
 ```
 
-### Data Flow
+### Data Flow 
 
 ```
 1. INGESTION     Client ──POST──▶ API ──Buffer──▶ In-Memory Channel
@@ -323,11 +323,16 @@ TaskForge/
 ¦   ¦   +-- Endpoints/            # Minimal API endpoints
 ¦   ¦   +-- Middleware/           # API key authentication
 ¦   ¦   +-- Metrics/              # Prometheus metrics
+¦   ¦   +-- Security/             # SSRF protection filters
+¦   ¦   +-- Services/             # Buffer, queue & broadcast services
 ¦   ¦   +-- wwwroot/              # Embedded React dashboard
 ¦   ¦   +-- Program.cs
 ¦   +-- TaskForge.Benchmark/      # BenchmarkDotNet benchmarks
-¦   +-- TaskForge.Core/            # Shared models & interfaces
+¦   +-- TaskForge.Core/            # Shared models, interfaces & security
+¦   ¦   +-- Security/             # SSRF protection (TaskForge.Core.Security)
 ¦   +-- TaskForge.Worker/          # Background job processor
+¦   ¦   +-- Handlers/             # Job execution handlers
+¦   +-- Security/
 +-- taskforge-ui/                  # React + Tailwind frontend
 ¦   +-- src/                       # React components
 ¦   +-- tests/                     # Playwright E2E tests

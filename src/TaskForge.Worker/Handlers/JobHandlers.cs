@@ -1,9 +1,9 @@
 using System.Diagnostics;
-using System.Net;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using TaskForge.Core;
+using TaskForge.Core.Security;
 
 namespace TaskForge.Worker.Handlers;
 
@@ -53,6 +53,22 @@ public class WebhookJobHandler : IJobHandler
 
         _logger.LogInformation("Executing webhook job {JobId}: {Method} {Url}",
             job.Id, webhook.Method, webhook.TargetUrl);
+
+        // SSRF protection: reject loopback / metadata / private addresses
+        try
+        {
+            SsrfProtectionFilter.EnsureSafe(webhook.TargetUrl);
+        }
+        catch (SsrfBlockedException ex)
+        {
+            _logger.LogWarning("Webhook job {JobId} blocked by SSRF filter: {Reason}", job.Id, ex.Message);
+            return JobExecutionResult.Failed($"Blocked by SSRF filter: {ex.Message}", 400);
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning("Webhook job {JobId} rejected invalid URL: {Reason}", job.Id, ex.Message);
+            return JobExecutionResult.Failed($"Invalid webhook URL: {ex.Message}", 400);
+        }
 
         try
         {
@@ -143,7 +159,7 @@ public class DefaultJobHandler : IJobHandler
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to process job {JobId}", job.Id);
+            _logger.LogError(ex, "Failed to process job {JobId}", ex.Message);
             return JobExecutionResult.Failed(ex.Message);
         }
     }

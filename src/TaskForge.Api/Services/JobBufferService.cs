@@ -1,5 +1,6 @@
+using System.Text.Json;
 using System.Threading.Channels;
-using System.Threading.Tasks;
+using TaskForge.Api.Services.Embedded;
 using TaskForge.Core;
 
 namespace TaskForge.Api.Services;
@@ -12,6 +13,7 @@ public interface IJobBufferService
     ValueTask<(bool Success, JobEnvelope? Job)> TryDequeueAsync(CancellationToken cancellationToken = default);
     ValueTask<JobEnvelope?> GetJobAsync(Guid jobId, CancellationToken cancellationToken = default);
     IReadOnlyList<JobEnvelope> GetAllJobs();
+    void UpdateJobStatus(Guid jobId, JobStatus status);
 }
 
 public class JobBufferService : IJobBufferService
@@ -19,13 +21,23 @@ public class JobBufferService : IJobBufferService
     private readonly Channel<JobEnvelope> _channel;
     private readonly ILogger<JobBufferService> _logger;
     private readonly IJobEventBroadcaster _broadcaster;
+    private readonly IEmbeddedJobRepository? _repository;
     private readonly Dictionary<Guid, JobEnvelope> _jobStore = new();
     private readonly object _lock = new();
 
     public JobBufferService(ILogger<JobBufferService> logger, IJobEventBroadcaster broadcaster)
+        : this(logger, broadcaster, repository: null)
+    {
+    }
+
+    public JobBufferService(
+        ILogger<JobBufferService> logger,
+        IJobEventBroadcaster broadcaster,
+        IEmbeddedJobRepository? repository)
     {
         _logger = logger;
         _broadcaster = broadcaster;
+        _repository = repository;
         _channel = Channel.CreateUnbounded<JobEnvelope>(new UnboundedChannelOptions
         {
             SingleReader = false,
@@ -49,7 +61,8 @@ public class JobBufferService : IJobBufferService
             }
             await _channel.Writer.WriteAsync(job, cancellationToken);
 
-            // Broadcast job enqueued event
+            await PersistJobAsync(jobWithStatus, cancellationToken);
+
             _broadcaster.BroadcastJobEnqueued(jobWithStatus);
 
             return true;
@@ -73,15 +86,14 @@ public class JobBufferService : IJobBufferService
                     {
                         if (_jobStore.TryGetValue(dequeuedJob.Id, out var job))
                         {
-                            // Create updated job with Processing status
                             var updatedJob = job with { Status = JobStatus.Processing };
                             _jobStore[dequeuedJob.Id] = updatedJob;
                             _logger.LogDebug("[BUFFER] Dequeued job {JobId}, status=Processing", dequeuedJob.Id);
 
-                            // Broadcast status change to Processing
                             _broadcaster.BroadcastJobStatusChanged(dequeuedJob.Id, JobStatus.Processing);
 
-                            // Return the UPDATED job, not the original (fixes SSE returning stale status)
+                            _ = PersistJobAsync(updatedJob, CancellationToken.None);
+
                             return (true, updatedJob);
                         }
                         else
@@ -122,7 +134,6 @@ public class JobBufferService : IJobBufferService
     {
         lock (_lock)
         {
-            // Return recent jobs (last 100), sorted by creation time descending
             return _jobStore.Values
                 .OrderByDescending(j => j.EnqueuedAt)
                 .Take(100)
@@ -139,13 +150,51 @@ public class JobBufferService : IJobBufferService
                 _jobStore[jobId] = job with { Status = status };
                 _logger.LogDebug("[BUFFER] UpdateJobStatus {JobId} -> {Status}", jobId, status);
 
-                // Broadcast status change
                 _broadcaster.BroadcastJobStatusChanged(jobId, status);
+
+                _ = PersistJobAsync(_jobStore[jobId], CancellationToken.None);
             }
             else
             {
                 _logger.LogWarning("[BUFFER] UpdateJobStatus {JobId} NOT FOUND!", jobId);
             }
+        }
+    }
+
+    private async Task PersistJobAsync(JobEnvelope job, CancellationToken cancellationToken)
+    {
+        if (_repository == null)
+        {
+            return;
+        }
+
+        try
+        {
+            var entity = new JobEntity
+            {
+                Id = job.Id,
+                QueueName = job.QueueName,
+                PayloadJson = JsonSerializer.Serialize(job),
+                Status = job.Status.ToString(),
+                RetryCount = 0,
+                MaxRetries = 3,
+                CreatedAt = job.EnqueuedAt,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            var existing = await _repository.GetJobAsync(job.Id, cancellationToken);
+            if (existing == null)
+            {
+                await _repository.SaveJobAsync(entity, cancellationToken);
+            }
+            else
+            {
+                await _repository.UpdateJobAsync(entity, cancellationToken);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to persist job {JobId} to embedded repository", job.Id);
         }
     }
 }
