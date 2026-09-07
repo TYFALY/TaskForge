@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
 using TaskForge.Api.Metrics;
 using TaskForge.Api.Services;
@@ -47,6 +47,24 @@ public static class JobsEndpoint
             .WithSummary("Get the status of a job")
             .Produces<EnqueueJobResponse>()
             .Produces(StatusCodes.Status404NotFound);
+
+        group.MapPost("/{jobId:guid}/retry", RetryJob)
+            .WithName("RetryJob")
+            .WithSummary("Retry/replay a failed or dead-lettered job")
+            .Produces(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
+
+        group.MapPost("/{jobId:guid}/cancel", CancelJob)
+            .WithName("CancelJob")
+            .WithSummary("Cancel an active or queued job")
+            .Produces(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status404NotFound);
+
+        group.MapPost("/dlq/replay-all", ReplayAllDlq)
+            .WithName("ReplayAllDlq")
+            .WithSummary("Replay all jobs in Dead-Letter status")
+            .Produces(StatusCodes.Status200OK);
     }
 
     private static async Task<IResult> EnqueueJob(
@@ -256,6 +274,72 @@ public static class JobsEndpoint
         {
             logger.LogError(ex, "Error getting job status for {JobId}", jobId);
             return Results.Problem("An error occurred while getting job status");
+        }
+    }
+
+    private static async Task<IResult> RetryJob(
+        Guid jobId,
+        [FromServices] IJobBufferService bufferService,
+        [FromServices] ILogger<Program> logger)
+    {
+        try
+        {
+            var success = await bufferService.RetryJobAsync(jobId);
+            if (!success)
+            {
+                return Results.NotFound(new { error = "Job not found", jobId });
+            }
+
+            return Results.Ok(new { success = true, message = $"Job {jobId} replayed successfully", jobId });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error retrying job {JobId}", jobId);
+            return Results.Problem("An error occurred while retrying job");
+        }
+    }
+
+    private static async Task<IResult> CancelJob(
+        Guid jobId,
+        [FromServices] IJobBufferService bufferService,
+        [FromServices] ILogger<Program> logger)
+    {
+        try
+        {
+            var job = await bufferService.GetJobAsync(jobId);
+            if (job == null)
+            {
+                return Results.NotFound(new { error = "Job not found", jobId });
+            }
+
+            if (job.Status == JobStatus.Completed)
+            {
+                return Results.BadRequest(new { error = "Cannot cancel an already completed job", jobId });
+            }
+
+            var cancelled = await bufferService.CancelJobAsync(jobId);
+            return Results.Ok(new { success = cancelled, message = $"Job {jobId} cancelled successfully", jobId });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error cancelling job {JobId}", jobId);
+            return Results.Problem("An error occurred while cancelling job");
+        }
+    }
+
+    private static async Task<IResult> ReplayAllDlq(
+        [FromServices] IJobBufferService bufferService,
+        [FromServices] ILogger<Program> logger)
+    {
+        try
+        {
+            var count = await bufferService.ReplayAllDlqAsync();
+            return Results.Ok(new { success = true, replayedCount = count, message = $"Replayed {count} dead-lettered job(s)" });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error replaying dead-lettered jobs");
+            return Results.Problem("An error occurred while replaying dead-lettered jobs");
         }
     }
 }

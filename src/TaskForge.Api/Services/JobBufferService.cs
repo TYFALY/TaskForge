@@ -14,6 +14,9 @@ public interface IJobBufferService
     ValueTask<JobEnvelope?> GetJobAsync(Guid jobId, CancellationToken cancellationToken = default);
     IReadOnlyList<JobEnvelope> GetAllJobs();
     void UpdateJobStatus(Guid jobId, JobStatus status);
+    ValueTask<bool> RetryJobAsync(Guid jobId, CancellationToken cancellationToken = default);
+    ValueTask<bool> CancelJobAsync(Guid jobId, CancellationToken cancellationToken = default);
+    ValueTask<int> ReplayAllDlqAsync(CancellationToken cancellationToken = default);
 }
 
 public class JobBufferService : IJobBufferService
@@ -181,6 +184,73 @@ public class JobBufferService : IJobBufferService
                 _logger.LogWarning("[BUFFER] UpdateJobStatus {JobId} NOT FOUND!", jobId);
             }
         }
+    }
+
+    public async ValueTask<bool> RetryJobAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        JobEnvelope? jobToRetry = null;
+        lock (_lock)
+        {
+            if (_jobStore.TryGetValue(jobId, out var job))
+            {
+                jobToRetry = job with { Status = JobStatus.Queued, EnqueuedAt = DateTime.UtcNow };
+                _jobStore[jobId] = jobToRetry;
+            }
+        }
+
+        if (jobToRetry != null)
+        {
+            _logger.LogInformation("[BUFFER] Replaying job {JobId} to active channel", jobId);
+            _broadcaster.BroadcastJobStatusChanged(jobId, JobStatus.Queued);
+            await _channel.Writer.WriteAsync(jobToRetry, cancellationToken);
+            _ = PersistJobAsync(jobToRetry, CancellationToken.None);
+            return true;
+        }
+
+        return false;
+    }
+
+    public ValueTask<bool> CancelJobAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        lock (_lock)
+        {
+            if (_jobStore.TryGetValue(jobId, out var job))
+            {
+                if (job.Status == JobStatus.Completed)
+                {
+                    return ValueTask.FromResult(false);
+                }
+
+                var cancelledJob = job with { Status = JobStatus.Cancelled };
+                _jobStore[jobId] = cancelledJob;
+                _logger.LogInformation("[BUFFER] Cancelled job {JobId}", jobId);
+                _broadcaster.BroadcastJobStatusChanged(jobId, JobStatus.Cancelled);
+                _ = PersistJobAsync(cancelledJob, CancellationToken.None);
+                return ValueTask.FromResult(true);
+            }
+        }
+
+        return ValueTask.FromResult(false);
+    }
+
+    public async ValueTask<int> ReplayAllDlqAsync(CancellationToken cancellationToken = default)
+    {
+        List<JobEnvelope> dlqJobs;
+        lock (_lock)
+        {
+            dlqJobs = _jobStore.Values
+                .Where(j => j.Status == JobStatus.DeadLettered || j.Status == JobStatus.Failed)
+                .ToList();
+        }
+
+        int count = 0;
+        foreach (var job in dlqJobs)
+        {
+            var retried = await RetryJobAsync(job.Id, cancellationToken);
+            if (retried) count++;
+        }
+
+        return count;
     }
 
     private async Task PersistJobAsync(JobEnvelope job, CancellationToken cancellationToken)

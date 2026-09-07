@@ -2,7 +2,11 @@
   <Folder Name="/src/">
     <Project Path="src/TaskForge.Api/TaskForge.Api.csproj" />
     <Project Path="src/TaskForge.Benchmark/TaskForge.Benchmark.csproj" />
+    <Project Path="src/TaskForge.Client/TaskForge.Client.csproj" />
     <Project Path="src/TaskForge.Core/TaskForge.Core.csproj" />
     <Project Path="src/TaskForge.Worker/TaskForge.Worker.csproj" />
+  </Folder>
+  <Folder Name="/test/">
+    <Project Path="src/TaskForge.Tests/TaskForge.Tests.csproj" />
   </Folder>
 </Solution>

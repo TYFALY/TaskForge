@@ -1,4 +1,4 @@
-﻿<p align="center">
+<p align="center">
   <img src="docs/logo.png" alt="TaskForge" width="180" />
 </p>
 

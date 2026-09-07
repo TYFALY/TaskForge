@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { X, Code, Copy, Check, BookOpen } from 'lucide-react';
 
 interface IntegrationGuideProps {

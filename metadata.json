@@ -1,0 +1,6 @@
+{
+  "name": "TaskForge - Distributed Job Engine",
+  "description": "High-performance distributed background job processing engine with real-time dashboard and lock-free channels",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

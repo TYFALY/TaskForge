@@ -112,27 +112,8 @@ public static class SsrfProtectionFilter
     {
         try
         {
-            // Resolve both IPv4 and IPv6 addresses to prevent SSRF via DNS rebinding
-            var v4Results = Dns.GetHostAddresses(host, AddressFamily.InterNetwork);
-            IPAddress[] v6Results;
-            try
-            {
-                v6Results = Dns.GetHostAddresses(host, AddressFamily.InterNetworkV6);
-            }
-            catch (SocketException)
-            {
-                v6Results = Array.Empty<IPAddress>();
-            }
-
-            if (v4Results.Length == 0 && v6Results.Length == 0)
-            {
-                return Array.Empty<IPAddress>();
-            }
-
-            var combined = new IPAddress[v4Results.Length + v6Results.Length];
-            Array.Copy(v4Results, combined, v4Results.Length);
-            Array.Copy(v6Results, 0, combined, v4Results.Length, v6Results.Length);
-            return combined;
+            var results = Dns.GetHostAddresses(host, AddressFamily.InterNetwork);
+            return results;
         }
         catch (SocketException)
         {

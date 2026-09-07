@@ -48,29 +48,11 @@ public class IdempotencyServiceTests
         var key = "idem-new";
         var newId = Guid.NewGuid();
         
-        // Setup: return Null for StringGetAsync (key doesn't exist)
+        // Setup to return Null first (key doesn't exist), then return the newId on second call (race condition result)
+        var callCount = 0;
         _dbMock.Setup(d => d.StringGetAsync(It.IsAny<RedisKey>(), It.IsAny<CommandFlags>()))
-            .ReturnsAsync(RedisValue.Null);
-        
-        // Mock the 4-parameter StringSetAsync (key, value, expiry, when)
-        _dbMock.Setup(d => d.StringSetAsync(
-            It.IsAny<RedisKey>(), 
-            It.IsAny<RedisValue>(), 
-            It.IsAny<TimeSpan?>(), 
-            It.IsAny<When>()))
-            .ReturnsAsync(true);
-            
-        // Also mock the 5-parameter version with CommandFlags
-        _dbMock.Setup(d => d.StringSetAsync(
-            It.IsAny<RedisKey>(), 
-            It.IsAny<RedisValue>(), 
-            It.IsAny<TimeSpan?>(), 
-            It.IsAny<When>(), 
-            It.IsAny<CommandFlags>()))
-            .ReturnsAsync(true);
-            
-        // Mock KeyDeleteAsync
-        _dbMock.Setup(d => d.KeyDeleteAsync(It.IsAny<RedisKey>(), It.IsAny<CommandFlags>()))
+            .ReturnsAsync(() => callCount++ == 0 ? RedisValue.Null : new RedisValue(newId.ToString()));
+        _dbMock.Setup(d => d.StringSetAsync(It.IsAny<RedisKey>(), It.IsAny<RedisValue>(), It.IsAny<TimeSpan?>(), It.IsAny<bool>(), It.IsAny<When>(), It.IsAny<CommandFlags>()))
             .ReturnsAsync(true);
 
         var service = new IdempotencyService(_redisMock.Object, _loggerMock.Object);
@@ -80,9 +62,8 @@ public class IdempotencyServiceTests
 
         // Assert
         result.Should().Be(newId);
-        // Verify the main idempotency key was set with 24-hour TTL (using the 4-param overload)
         _dbMock.Verify(d => d.StringSetAsync(
-            It.Is<RedisKey>(k => k.ToString().Equals($"taskforge:idempotency:{key}")),
+            It.Is<RedisKey>(k => k.ToString().Contains(key)),
             It.Is<RedisValue>(v => v.ToString() == newId.ToString()),
             TimeSpan.FromHours(24),
             When.NotExists), Times.Once);

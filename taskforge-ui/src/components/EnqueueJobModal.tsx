@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { X, Send, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 import type { Job, JobStatus } from '../types';
 

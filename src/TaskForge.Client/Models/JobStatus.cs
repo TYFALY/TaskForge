@@ -1,4 +1,4 @@
-namespace TaskForge.Core;
+namespace TaskForge.Client.Models;
 
 public enum JobStatus
 {

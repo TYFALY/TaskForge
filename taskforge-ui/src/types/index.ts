@@ -1,12 +1,26 @@
+export interface ThroughputPoint {
+  timestamp: string;
+  throughput: number;
+  queueSize: number;
+}
+
 export interface QueueMetrics {
   queueSize: number;
   activeWorkers: number;
   timestamp: string;
   mode?: string;
   processedCount?: number;
+  throughputHistory?: ThroughputPoint[];
 }
 
-export type JobStatus = 'Queued' | 'Processing' | 'Completed' | 'Failed' | 'DeadLettered';
+export type JobStatus = 'Queued' | 'Processing' | 'Completed' | 'Failed' | 'DeadLettered' | 'Cancelled';
+
+export interface TimelineEvent {
+  event: string;
+  timestamp: string;
+  durationMs?: number;
+  details?: string;
+}
 
 export interface Job {
   id: string;
@@ -19,6 +33,7 @@ export interface Job {
   createdAt: string;
   updatedAt: string;
   jobType?: string;
+  timeline?: TimelineEvent[];
 }
 
 export interface JobEvent {
