@@ -43,18 +43,45 @@ public class IdempotencyService : IIdempotencyService
         // Create new job ID
         var newId = await createJobIdFactory();
 
-        // Atomically set if not already present (NX = only if not exists)
-        var wasSet = await db.StringSetAsync(key, newId.ToString(), KeyTtl, When.NotExists);
-        if (wasSet)
+        // Two-phase atomic reservation:
+        // Phase 1: Try to claim with a "PROCESSING" state marker
+        var processingKey = $"{key}:processing";
+        var claimed = await db.StringSetAsync(processingKey, newId.ToString(), TimeSpan.FromSeconds(30), When.NotExists);
+        
+        if (claimed)
         {
-            _logger.LogDebug("Cached new job {JobId} for idempotency key {Key}", newId, idempotencyKey);
-            return newId;
+            try
+            {
+                // Phase 2: Atomically set the actual key if still holding the reservation
+                var wasSet = await db.StringSetAsync(key, newId.ToString(), KeyTtl, When.NotExists);
+                if (wasSet)
+                {
+                    _logger.LogDebug("Cached new job {JobId} for idempotency key {Key}", newId, idempotencyKey);
+                    return newId;
+                }
+                
+                // Another request set the key first - fetch and return
+                var raceResult = await db.StringGetAsync(key);
+                _logger.LogDebug("Race won by another request for idempotency key {Key}", idempotencyKey);
+                return Guid.Parse(raceResult.ToString());
+            }
+            finally
+            {
+                // Release the processing reservation
+                await db.KeyDeleteAsync(processingKey);
+            }
         }
 
-        // Another request already set it first - fetch and return
-        var raceResult = await db.StringGetAsync(key);
-        _logger.LogDebug("Race won by another request for idempotency key {Key}", idempotencyKey);
-        return Guid.Parse(raceResult.ToString());
+        // Another request is already creating this job - wait briefly and fetch
+        await Task.Delay(50);
+        var result = await db.StringGetAsync(key);
+        if (!result.IsNull)
+        {
+            return Guid.Parse(result.ToString());
+        }
+
+        // Edge case: first writer failed, try to claim again
+        return await GetOrCachedJobIdAsync(idempotencyKey, jobType, createJobIdFactory);
     }
 
     private static string GetRedisKey(string idempotencyKey) => $"taskforge:idempotency:{idempotencyKey}";

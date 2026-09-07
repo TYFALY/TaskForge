@@ -72,6 +72,10 @@ public class RedisQueueService : IRedisQueueService
             // Workers use BRPOP to consume from the tail (right).
             var result = await db.ListLeftPushAsync(key, serialized);
             
+            // Notify waiting workers via pub/sub for event-driven wakeup
+            var notificationChannel = new RedisChannel(GetNotificationChannel(queueName), RedisChannel.PatternMode.Literal);
+            await db.PublishAsync(notificationChannel, job.Id.ToString());
+            
             _logger.LogDebug("Job {JobId} pushed to Redis queue {QueueName}. New queue length: {Length}", 
                 job.Id, queueName, result);
             
@@ -143,4 +147,9 @@ public class RedisQueueService : IRedisQueueService
     /// Gets the Redis key for a queue.
     /// </summary>
     private static string GetQueueKey(string queueName) => $"taskforge:queue:{queueName}";
+
+    /// <summary>
+    /// Gets the Redis pub/sub channel for queue notifications.
+    /// </summary>
+    private static string GetNotificationChannel(string queueName) => $"taskforge:notify:{queueName}";
 }

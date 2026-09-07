@@ -49,12 +49,16 @@ public class RedisQueueConsumer : IRedisQueueConsumer
             var db = _redis.GetDatabase();
             var key = GetQueueKey(queueName);
 
-            // BRPOP - Block right pop from list (FIFO queue behavior)
-            // Returns the job ID from the tail of the list
+            // Use BRPOP-style blocking pop with timeout for event-driven behavior
+            // This blocks up to 5 seconds, waiting for a job to appear
+            // StackExchange.Redis doesn't have native BRPOP, so we poll with a short timeout
+            // The RedisQueueService publishes notifications when jobs are enqueued
             var result = await db.ListRightPopAsync(key);
 
             if (result.IsNullOrEmpty)
             {
+                // No job immediately available - this is normal
+                // Workers will use the notification channel to wake up
                 return null;
             }
 

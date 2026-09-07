@@ -121,8 +121,22 @@ export default function App() {
     failedCount: jobs.filter(j => j.status === "Failed").length,
     deadLetteredCount: jobs.filter(j => j.status === "DeadLettered").length,
     activeWorkers: metrics?.activeWorkers ?? 1,
-    avgLatencyMs: Math.floor(Math.random() * 100) + 50,
+    avgLatencyMs: calculateAvgLatency(jobs),
   };
+
+  function calculateAvgLatency(jobList: Job[]): number {
+    const completedJobs = jobList.filter(j => j.status === "Completed" && j.createdAt && j.updatedAt);
+    if (completedJobs.length === 0) return 0;
+    
+    const latencies = completedJobs.map(j => {
+      const created = new Date(j.createdAt).getTime();
+      const updated = new Date(j.updatedAt).getTime();
+      return updated - created;
+    });
+    
+    const sum = latencies.reduce((acc, lat) => acc + lat, 0);
+    return Math.round(sum / latencies.length);
+  }
 
   return (
     <div className="min-h-screen bg-background">

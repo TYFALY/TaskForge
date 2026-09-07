@@ -49,6 +49,7 @@ if (isEmbedded)
     {
         dbPath = Path.Combine(baseDir, dbPath);
     }
+    builder.Services.AddSingleton<IJobEventBroadcaster, JobEventBroadcaster>();
     builder.Services.AddSingleton<IEmbeddedQueueService, EmbeddedQueueService>();
     builder.Services.AddSingleton<IEmbeddedJobRepository>(sp =>
         new EmbeddedJobRepository(dbPath, sp.GetRequiredService<ILogger<EmbeddedJobRepository>>()));
@@ -74,6 +75,9 @@ else
     });
     builder.Services.AddSingleton<IJobBufferService, JobBufferService>();
     builder.Services.AddSingleton<IRedisQueueService, RedisQueueService>();
+    builder.Services.AddSingleton<IWorkflowStore, InMemoryWorkflowStore>();
+    builder.Services.AddSingleton<IWorkflowEngine, WorkflowEngine>();
+    builder.Services.AddSingleton<IIdempotencyService, IdempotencyService>();
     builder.Services.AddSingleton<IJobQueueService, RedisQueueServiceAdapter>();
     builder.Services.AddHostedService<BufferProcessorService>();
 }
@@ -89,6 +93,11 @@ if (allowedOrigins.Length == 0 && builder.Environment.IsDevelopment())
 {
     allowedOrigins = new[] { "http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:3000" };
 }
+
+builder.Services.AddHttpClient("WebhookClient", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
 
 builder.Services.AddCors(options =>
 {
@@ -198,10 +207,3 @@ if (autoOpenBrowser && isEmbedded)
 }
 
 app.Run();
-builder.Services.AddSingleton<InMemoryWorkflowStore>();
-builder.Services.AddSingleton<IWorkflowStore>(sp => sp.GetRequiredService<InMemoryWorkflowStore>());
-
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddHttpClient();
-
-builder.Services.AddSingleton<IJobEventBroadcaster, JobEventBroadcaster>();

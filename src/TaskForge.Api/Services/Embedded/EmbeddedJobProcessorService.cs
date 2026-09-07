@@ -14,6 +14,7 @@ public class EmbeddedJobProcessorService : BackgroundService, IEmbeddedJobProces
 {
     private readonly IJobBufferService _bufferService;
     private readonly IEmbeddedQueueService _queueService;
+    private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<EmbeddedJobProcessorService> _logger;
     private readonly string _workerId;
     private readonly int _maxRetries;
@@ -25,11 +26,13 @@ public class EmbeddedJobProcessorService : BackgroundService, IEmbeddedJobProces
     public EmbeddedJobProcessorService(
         IJobBufferService bufferService,
         IEmbeddedQueueService queueService,
+        IHttpClientFactory httpClientFactory,
         ILogger<EmbeddedJobProcessorService> logger,
         int maxRetries = 3)
     {
         _bufferService = bufferService;
         _queueService = queueService;
+        _httpClientFactory = httpClientFactory;
         _logger = logger;
         _workerId = $"embedded-worker-{Environment.MachineName}-{Guid.NewGuid():N}"[..32];
         _maxRetries = maxRetries;
@@ -170,7 +173,7 @@ public class EmbeddedJobProcessorService : BackgroundService, IEmbeddedJobProces
         _logger.LogInformation("[PROCESSOR] Executing webhook job {JobId}: {Method} {Url}",
             job.Id, webhook.Method, webhook.TargetUrl);
 
-        using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(webhook.TimeoutSeconds) };
+        using var httpClient = _httpClientFactory.CreateClient("WebhookClient");
         using var request = new HttpRequestMessage
         {
             Method = new HttpMethod(webhook.Method),

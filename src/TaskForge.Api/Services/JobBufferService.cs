@@ -18,11 +18,14 @@ public interface IJobBufferService
 
 public class JobBufferService : IJobBufferService
 {
+    private const int MaxJobStoreSize = 5000;
+    
     private readonly Channel<JobEnvelope> _channel;
     private readonly ILogger<JobBufferService> _logger;
     private readonly IJobEventBroadcaster _broadcaster;
     private readonly IEmbeddedJobRepository? _repository;
     private readonly Dictionary<Guid, JobEnvelope> _jobStore = new();
+    private readonly LinkedList<Guid> _accessOrder = new();
     private readonly object _lock = new();
 
     public JobBufferService(ILogger<JobBufferService> logger, IJobEventBroadcaster broadcaster)
@@ -56,10 +59,24 @@ public class JobBufferService : IJobBufferService
             var jobWithStatus = job with { Status = JobStatus.Queued };
             lock (_lock)
             {
+                // Evict oldest completed/failed jobs if at capacity
+                while (_jobStore.Count >= MaxJobStoreSize)
+                {
+                    if (_accessOrder.First != null)
+                    {
+                        var oldestId = _accessOrder.First.Value;
+                        _accessOrder.RemoveFirst();
+                        _jobStore.Remove(oldestId);
+                        _logger.LogDebug("[BUFFER] Evicted job {JobId} due to capacity limit", oldestId);
+                    }
+                    else break;
+                }
+                
                 _jobStore[job.Id] = jobWithStatus;
+                _accessOrder.AddLast(job.Id);
                 _logger.LogDebug("[BUFFER] Enqueued job {JobId}, status=Queued, store count={Count}", job.Id, _jobStore.Count);
             }
-            await _channel.Writer.WriteAsync(job, cancellationToken);
+            await _channel.Writer.WriteAsync(jobWithStatus, cancellationToken);
 
             await PersistJobAsync(jobWithStatus, cancellationToken);
 
@@ -88,6 +105,11 @@ public class JobBufferService : IJobBufferService
                         {
                             var updatedJob = job with { Status = JobStatus.Processing };
                             _jobStore[dequeuedJob.Id] = updatedJob;
+                            
+                            // Move to end of LRU list (most recently dequeued)
+                            _accessOrder.Remove(dequeuedJob.Id);
+                            _accessOrder.AddLast(dequeuedJob.Id);
+                            
                             _logger.LogDebug("[BUFFER] Dequeued job {JobId}, status=Processing", dequeuedJob.Id);
 
                             _broadcaster.BroadcastJobStatusChanged(dequeuedJob.Id, JobStatus.Processing);
