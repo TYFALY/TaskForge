@@ -21,6 +21,11 @@ public interface IRedisQueueConsumer
     /// Requeues a job with exponential backoff consideration.
     /// </summary>
     Task RequeueJobAsync(JobEnvelope job, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Requeues a job from JSON string (used by delayed retry poller).
+    /// </summary>
+    Task RequeueJobJsonAsync(string jobJson, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -90,6 +95,27 @@ public class RedisQueueConsumer : IRedisQueueConsumer
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to requeue job {JobId}", job.Id);
+        }
+    }
+
+    public async Task RequeueJobJsonAsync(string jobJson, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var job = JsonSerializer.Deserialize<JobEnvelope>(jobJson, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+
+            if (job != null)
+            {
+                await RequeueJobAsync(job, cancellationToken);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to requeue job from JSON");
+            throw;
         }
     }
 

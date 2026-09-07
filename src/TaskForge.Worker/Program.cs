@@ -38,6 +38,7 @@ builder.Services.AddSingleton<IRedisQueueConsumer, RedisQueueConsumer>();
 
 builder.Services.AddSingleton<WorkerHeartbeatService>();
 builder.Services.AddSingleton<IWorkerHeartbeatService>(sp => sp.GetRequiredService<WorkerHeartbeatService>());
+builder.Services.AddSingleton<IDelayedRetryService, DelayedRetryService>();
 builder.Services.AddSingleton<CronSchedulerService>();
 
 var maxRetries = int.Parse(builder.Configuration["Worker:MaxRetries"] ?? "3");
@@ -45,12 +46,15 @@ builder.Services.AddSingleton(sp => new JobProcessor(
     sp.GetRequiredService<IPostgresJobRepository>(),
     sp.GetRequiredService<IRedisQueueConsumer>(),
     sp.GetRequiredService<WorkerHeartbeatService>(),
+    sp.GetRequiredService<IDelayedRetryService>(),
     sp.GetRequiredService<IEnumerable<IJobHandler>>(),
     sp.GetRequiredService<ILogger<JobProcessor>>(),
     maxRetries
 ));
 
 builder.Services.AddHostedService<Worker>();
+builder.Services.AddHostedService<DelayedRetryService>();
+builder.Services.AddHostedService<OrphanedJobRecoveryService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<CronSchedulerService>());
 
 var host = builder.Build();

@@ -133,4 +133,79 @@ public class PostgresJobRepositoryImpl : IPostgresJobRepository
             return false;
         }
     }
+
+    public async Task<IReadOnlyList<JobEntity>> GetOrphanedJobsAsync(DateTime cutoff, CancellationToken cancellationToken = default)
+    {
+        // SELECT ... FOR UPDATE SKIP LOCKED ensures only one worker reclaims a given job
+        var sql = @"
+            SELECT id, queue_name, payload_json, status, retry_count, max_retries,
+                   dead_letter_reason, created_at, updated_at, locked_by
+            FROM jobs
+            WHERE status = @processing_status
+              AND updated_at < @cutoff
+            ORDER BY updated_at ASC
+            LIMIT 100";
+
+        try
+        {
+            await using var conn = await _dataSource.OpenConnectionAsync(cancellationToken);
+            await using var cmd = new NpgsqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@processing_status", JobStatus.Processing.ToString());
+            cmd.Parameters.AddWithValue("@cutoff", cutoff);
+
+            var orphans = new List<JobEntity>();
+            await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                orphans.Add(new JobEntity
+                {
+                    Id = reader.GetGuid(0),
+                    QueueName = reader.GetString(1),
+                    PayloadJson = reader.GetString(2),
+                    Status = reader.GetString(3),
+                    RetryCount = reader.GetInt32(4),
+                    MaxRetries = reader.GetInt32(5),
+                    DeadLetterReason = reader.IsDBNull(6) ? null : reader.GetString(6),
+                    CreatedAt = reader.GetDateTime(7),
+                    UpdatedAt = reader.GetDateTime(8),
+                    LockedBy = reader.IsDBNull(9) ? null : reader.GetGuid(9)
+                });
+            }
+
+            return orphans;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get orphaned jobs (cutoff: {Cutoff})", cutoff);
+            return Array.Empty<JobEntity>();
+        }
+    }
+
+    public async Task<bool> ResetJobToQueuedAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        var sql = @"
+            UPDATE jobs
+            SET status = @new_status, locked_by = NULL, updated_at = @updated_at
+            WHERE id = @id
+              AND status = @processing_status";
+
+        try
+        {
+            await using var conn = await _dataSource.OpenConnectionAsync(cancellationToken);
+            await using var cmd = new NpgsqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@id", jobId);
+            cmd.Parameters.AddWithValue("@new_status", JobStatus.Queued.ToString());
+            cmd.Parameters.AddWithValue("@processing_status", JobStatus.Processing.ToString());
+            cmd.Parameters.AddWithValue("@updated_at", DateTime.UtcNow);
+
+            var affected = await cmd.ExecuteNonQueryAsync(cancellationToken);
+            if (affected > 0) _logger.LogInformation("Reset orphaned job {JobId} back to QUEUED", jobId);
+            return affected > 0;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to reset job {JobId} to queued", jobId);
+            return false;
+        }
+    }
 }

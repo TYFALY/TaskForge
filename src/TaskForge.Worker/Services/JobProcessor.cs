@@ -9,6 +9,7 @@ public class JobProcessor
     private readonly IPostgresJobRepository _repository;
     private readonly IRedisQueueConsumer _consumer;
     private readonly IWorkerHeartbeatService _heartbeat;
+    private readonly IDelayedRetryService _delayedRetryService;
     private readonly IEnumerable<IJobHandler> _handlers;
     private readonly ILogger<JobProcessor> _logger;
     private readonly int _maxRetries;
@@ -18,6 +19,7 @@ public class JobProcessor
         IPostgresJobRepository repository,
         IRedisQueueConsumer consumer,
         IWorkerHeartbeatService heartbeat,
+        IDelayedRetryService delayedRetryService,
         IEnumerable<IJobHandler> handlers,
         ILogger<JobProcessor> logger,
         int maxRetries = 3)
@@ -25,6 +27,7 @@ public class JobProcessor
         _repository = repository;
         _consumer = consumer;
         _heartbeat = heartbeat;
+        _delayedRetryService = delayedRetryService;
         _handlers = handlers;
         _logger = logger;
         _maxRetries = maxRetries;
@@ -89,14 +92,15 @@ public class JobProcessor
         else
         {
             var delaySeconds = (int)Math.Pow(2, newRetryCount);
-            _logger.LogInformation("Job {JobId} will be retried in {Delay}s (attempt {Retry}/{Max})",
+            _logger.LogInformation("Job {JobId} will be retried in {Delay}s via delayed queue (attempt {Retry}/{Max})",
                 job.Id, delaySeconds, newRetryCount, _maxRetries);
 
             await _repository.IncrementRetryCountAsync(job.Id, cancellationToken);
             var updatedJob = job with { CurrentRetry = newRetryCount };
 
-            await Task.Delay(TimeSpan.FromSeconds(delaySeconds), cancellationToken);
-            await _consumer.RequeueJobAsync(updatedJob, cancellationToken);
+            // Schedule retry via Redis ZSET instead of blocking Task.Delay
+            var jobJson = System.Text.Json.JsonSerializer.Serialize(updatedJob);
+            await _delayedRetryService.ScheduleRetryAsync(jobJson, delaySeconds, cancellationToken);
         }
     }
 }

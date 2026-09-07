@@ -21,6 +21,11 @@ public interface IWorkerHeartbeatService
     /// Stops the heartbeat background task.
     /// </summary>
     Task StopAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Checks if a worker is alive (has a valid heartbeat).
+    /// </summary>
+    Task<bool> IsWorkerAliveAsync(Guid workerId, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -79,5 +84,21 @@ public class WorkerHeartbeatService : IWorkerHeartbeatService
             _logger.LogDebug("Heartbeat sent for worker {WorkerId}, TTL: {TTL}s", WorkerId, _ttlSeconds);
         }
         catch (Exception ex) { _logger.LogError(ex, "Failed to send heartbeat for worker {WorkerId}", WorkerId); }
+    }
+
+    public async Task<bool> IsWorkerAliveAsync(Guid workerId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var db = _redis.GetDatabase();
+            var key = $"taskforge:workers:{workerId}";
+            var exists = await db.KeyExistsAsync(key);
+            return exists;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to check heartbeat for worker {WorkerId}", workerId);
+            return false;
+        }
     }
 }

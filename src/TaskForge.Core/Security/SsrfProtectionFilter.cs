@@ -42,7 +42,24 @@ public static class SsrfProtectionFilter
 
         if (!Uri.TryCreate(rawUrl, UriKind.Absolute, out var uri))
         {
-            throw new ArgumentException($"Webhook URL is not a valid absolute URI: {rawUrl}", nameof(rawUrl));
+            // Try wrapping IPv6 address in brackets if it looks like an IPv6 address
+            if (rawUrl.Contains("::"))
+            {
+                var wrappedUrl = rawUrl.Insert(rawUrl.IndexOf("://", StringComparison.Ordinal) + 3, "[");
+                var closingBracket = wrappedUrl.LastIndexOf('/');
+                if (closingBracket > 0)
+                {
+                    wrappedUrl = wrappedUrl.Insert(closingBracket, "]");
+                    if (Uri.TryCreate(wrappedUrl, UriKind.Absolute, out uri))
+                    {
+                        // Successfully parsed as IPv6, continue with validation
+                    }
+                }
+            }
+            if (uri == null)
+            {
+                throw new ArgumentException($"Webhook URL is not a valid absolute URI: {rawUrl}", nameof(rawUrl));
+            }
         }
 
         if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
@@ -51,6 +68,12 @@ public static class SsrfProtectionFilter
         }
 
         var host = uri.Host;
+        
+        // If host is wrapped in brackets (IPv6), extract the actual address
+        if (host.StartsWith("[") && host.EndsWith("]"))
+        {
+            host = host[1..^1];
+        }
 
         // Block obvious loopback names
         if (BlockedHostNames.Contains(host, StringComparer.OrdinalIgnoreCase))
@@ -104,14 +127,15 @@ public static class SsrfProtectionFilter
 
     private static bool IsBlockedAddress(IPAddress address)
     {
-        // Loopback: 127.0.0.0/8
+        // Loopback: 127.0.0.0/8 and ::1
         if (IPAddress.IsLoopback(address))
         {
             return true;
         }
 
         // Link-local: includes 169.254.0.0/16 (cloud metadata IP 169.254.169.254 lives here)
-        if (address.IsIPv6LinkLocal)
+        // Also covers IPv6 link-local (fe80::/10)
+        if (address.IsIPv6LinkLocal || (address.AddressFamily == AddressFamily.InterNetwork && IsLinkLocalV4(address)))
         {
             return true;
         }
@@ -140,6 +164,13 @@ public static class SsrfProtectionFilter
         }
 
         return false;
+    }
+
+    // Check for IPv4 link-local (169.254.0.0/16)
+    private static bool IsLinkLocalV4(IPAddress address)
+    {
+        var bytes = address.GetAddressBytes();
+        return bytes.Length == 4 && bytes[0] == 169 && bytes[1] == 254;
     }
 }
 

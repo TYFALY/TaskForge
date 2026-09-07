@@ -1,0 +1,114 @@
+version: "3.9"
+
+# Distributed mode: Postgres + Redis + API + Worker replicas
+# Usage: docker-compose -f docker-compose.distributed.yml up -d
+
+services:
+  # ── Data Stores ──────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: taskforge-postgres
+    environment:
+      POSTGRES_DB: taskforge
+      POSTGRES_USER: taskforge
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-taskforge_dev_password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taskforge -d taskforge"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: taskforge-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+  # ── TaskForge Services ────────────────────────────────────────
+  taskforge-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: taskforge-api
+    ports:
+      - "5000:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ExecutionMode=Distributed
+      - TaskForge__ApiKey=${TASKFORGE_API_KEY:-MISSING_API_KEY_PRODUCTION_ERROR}
+      - TaskForge__Server__Port=8080
+      - Redis__ConnectionString=redis:6379
+      - Postgres__ConnectionString=Host=postgres;Database=taskforge;Username=taskforge;Password=${POSTGRES_PASSWORD:-taskforge_dev_password}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  taskforge-worker-1:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    container_name: taskforge-worker-1
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ExecutionMode=Distributed
+      - TaskForge__ApiKey=${TASKFORGE_API_KEY:-MISSING_API_KEY_PRODUCTION_ERROR}
+      - Redis__ConnectionString=redis:6379
+      - Postgres__ConnectionString=Host=postgres;Database=taskforge;Username=taskforge;Password=${POSTGRES_PASSWORD:-taskforge_dev_password}
+      - Worker__InstanceId=worker-1
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  taskforge-worker-2:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    container_name: taskforge-worker-2
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ExecutionMode=Distributed
+      - TaskForge__ApiKey=${TASKFORGE_API_KEY:-MISSING_API_KEY_PRODUCTION_ERROR}
+      - Redis__ConnectionString=redis:6379
+      - Postgres__ConnectionString=Host=postgres;Database=taskforge;Username=taskforge;Password=${POSTGRES_PASSWORD:-taskforge_dev_password}
+      - Worker__InstanceId=worker-2
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+# ── Volumes ───────────────────────────────────────────────────
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local

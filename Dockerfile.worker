@@ -1,0 +1,22 @@
+# Multi-stage build for TaskForge Worker (Distributed mode)
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /src
+
+COPY src/TaskForge.Core/TaskForge.Core.csproj src/TaskForge.Core/
+COPY src/TaskForge.Worker/TaskForge.Worker.csproj src/TaskForge.Worker/
+
+RUN dotnet restore src/TaskForge.Worker/TaskForge.Worker.csproj
+
+COPY src/ src/
+WORKDIR /src/src/TaskForge.Worker
+RUN dotnet publish -c Release -o /app/publish --no-restore
+
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+WORKDIR /app
+
+COPY --from=build /app/publish .
+
+# Non-root user for security
+USER $APP_UID
+
+ENTRYPOINT ["dotnet", "TaskForge.Worker.dll"]

@@ -32,4 +32,15 @@ public interface IPostgresJobRepository
     /// Increments the retry count for a job.
     /// </summary>
     Task<bool> IncrementRetryCountAsync(Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets jobs stuck in PROCESSING state whose lease has expired (orphaned).
+    /// Uses SELECT ... FOR UPDATE SKIP LOCKED for safe concurrent reclamation.
+    /// </summary>
+    Task<IReadOnlyList<JobEntity>> GetOrphanedJobsAsync(DateTime cutoff, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Atomically resets a job back to QUEUED status for re-processing.
+    /// </summary>
+    Task<bool> ResetJobToQueuedAsync(Guid jobId, CancellationToken cancellationToken = default);
 }
