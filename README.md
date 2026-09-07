@@ -52,7 +52,7 @@ The TaskForge dashboard is a modern **React + Tailwind CSS** interface that prov
 +---------------------------------------------------------+
 ¦                    ZERO POLLING                         ¦
 ¦                                                          ¦
-¦   Dashboard ?---- SSE Stream ------? TaskForge API    ¦
+¦   Dashboard ──── SSE Stream ────── TaskForge API    ¦
 ¦                                                          ¦
 ¦   Updates appear instantly when jobs complete            ¦
 +---------------------------------------------------------+
@@ -125,25 +125,25 @@ curl -N http://localhost:5000/api/v1/events \\
 ¦                              CLIENT LAYER                                    ¦
 ¦         (cURL, Postman, Browser, Mobile App, CI/CD Pipeline)               ¦
 +-----------------------------------------------------------------------------+
-                                 ¦ HTTP POST /api/v1/jobs/enqueue
-                                 ?
+                                 │ HTTP POST /api/v1/jobs/enqueue
+                                 ▼
 +-----------------------------------------------------------------------------+
 ¦                      TASKFORGE API (ASP.NET Core 8)                        ¦
 ¦  +----------------+    +----------------+    +------------------------+   ¦
-¦  ¦  Web API       ¦---?¦  Job           ¦---?¦  Channel Buffer        ¦   ¦
+¦  ¦  Web API       ¦───▶¦  Job           ¦───▶¦  Channel Buffer        ¦   ¦
 ¦  ¦  Controllers   ¦    ¦  Controller    ¦    ¦  (RAM - Channels)      ¦   ¦
 ¦  +----------------+    +----------------+    +------------------------+   ¦
 ¦  +----------------+    +----------------+               ¦                 ¦
-¦  ¦  SSE Stream    ¦?---¦  Job           ¦?---¦  Background Job       ¦   ¦
+¦  ¦  SSE Stream    ¦◀───¦  Job           ¦◀───¦  Background Job       ¦   ¦
 ¦  ¦  /events      ¦    ¦  Broadcaster   ¦    ¦  Processor            ¦   ¦
 ¦  +----------------+    +----------------+    +------------------------+   ¦
 ¦  +----------------+    +----------------+               ¦                 ¦
-¦  ¦  Health        ¦    ¦  Webhook       ¦--------------?¦  External HTTP   ¦   ¦
+¦  ¦  Health        ¦    ¦  Webhook       ¦──────────────▶│  External HTTP   ¦   ¦
 ¦  ¦  /health      ¦    ¦  Executor      ¦    ¦  Targets              ¦   ¦
 ¦  +----------------+    +----------------+    +------------------------+   ¦
 +-----------------------------------------------------------------------------+
-                                 ¦
-                                 ?
+                                 │
+                                 ▼
                      +-----------------------+
                      ¦   SQLite / PostgreSQL  ¦
                      ¦   (Job Persistence)   ¦
@@ -153,11 +153,11 @@ curl -N http://localhost:5000/api/v1/events \\
 ### Data Flow
 
 ```
-1. INGESTION     Client --POST--? API --Buffer--? In-Memory Channel
-2. PROCESSING    Channel ----------------------? Background Worker
-3. EXECUTION     Worker --HTTP POST--? Webhook Target
-4. BROADCAST     Worker --Signal--? SSE ------? Dashboard (Real-time)
-5. PERSISTENCE   Worker --Write--? SQLite/PostgreSQL
+1. INGESTION     Client ──POST──▶ API ──Buffer──▶ In-Memory Channel
+2. PROCESSING    Channel ──────────────────────▶ Background Worker
+3. EXECUTION     Worker ──HTTP POST──▶ Webhook Target
+4. BROADCAST     Worker ──Signal──▶ SSE ──────▶ Dashboard (Real-time)
+5. PERSISTENCE   Worker ──Write──▶ SQLite/PostgreSQL
 ```
 
 ---
