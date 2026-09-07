@@ -7,11 +7,11 @@
     <Version>1.0.0</Version>
     <Product>TaskForge</Product>
     <Description>Lightweight distributed background job processing engine</Description>
-    <!-- Single-file deployment settings -->
-    <PublishSingleFile>true</PublishSingleFile>
-    <SelfContained>true</SelfContained>
-    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
-    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <!-- Single-file deployment settings (active when published with a RuntimeIdentifier e.g. -r win-x64) -->
+    <PublishSingleFile Condition="'$(RuntimeIdentifier)' != ''">true</PublishSingleFile>
+    <SelfContained Condition="'$(RuntimeIdentifier)' != ''">true</SelfContained>
+    <IncludeNativeLibrariesForSelfExtract Condition="'$(RuntimeIdentifier)' != ''">true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile Condition="'$(RuntimeIdentifier)' != ''">true</EnableCompressionInSingleFile>
     <!-- Disable default content items to avoid duplicates -->
     <EnableDefaultContentItems>false</EnableDefaultContentItems>
     <!-- Disable static web assets -->
